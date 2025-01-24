@@ -43,5 +43,6 @@ resource "yandex_compute_instance" "this" {
 
   network_interface {
     subnet_id = yandex_vpc_subnet.private.id
+    nat = true
   }
 }
