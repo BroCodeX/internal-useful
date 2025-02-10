@@ -51,10 +51,33 @@ services:
       # Для внутренних контейнеров используем INTERNAL-слушатель, так как имя "kafka" разрешается в сети Docker
       KAFKA_CLUSTERS_0_BOOTSTRAPSERVERS: kafka:9092
       KAFKA_CLUSTERS_0_ZOOKEEPER: zookeeper:2181
+      AUTH_TYPE: "LOGIN_FORM"
+      SPRING_SECURITY_USER_NAME: "${KAFKA_UI_USER}"
+      SPRING_SECURITY_USER_PASSWORD: "${KAFKA_UI_PASS}"
     depends_on:
       - kafka
+
+  postgres:
+    image: "postgres:16"
+    container_name: "postgres"
+    environment:
+      POSTGRES_USER: "${DB_USERNAME}"
+      POSTGRES_PASSWORD: "${DB_PASSWORD}"
+      POSTGRES_DB: "${DB_NAME}"
+    ports:
+      - "${POSTGRES_PORT}:5432"
+    volumes:
+      - postgres-data:/var/lib/postgresql/data
+    restart: always
+    healthcheck:
+      test: [ "CMD", "pg_isready", "-U", "${DB_USERNAME}" ]
+      interval: 10s
+      retries: 5
+      start_period: 10s
+      timeout: 5s
 
 volumes:
   zookeeper-data:
   zookeeper-log:
   kafka-data:
+  postgres-data:
