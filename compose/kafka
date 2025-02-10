@@ -19,18 +19,18 @@ services:
     container_name: kafka
     ports:
       # Публикуем внешний слушатель (EXTERNAL) на порт KAFKA_PORT (например, 9093)
-      - "${KAFKA_PORT}:9093"
+      - "${KAFKA_EXTERNAL_PORT}:9093"
       # Внутренний слушатель (INTERNAL) доступен только в сети Docker
-      - "29092:29092"
+      - "${KAFKA_INTERNAL_PORT}:9092"
     environment:
       KAFKA_BROKER_ID: 1
       KAFKA_ZOOKEEPER_CONNECT: zookeeper:2181
       # Определяем два слушателя:
-      #  - INTERNAL – слушает на 29092 внутри Docker-сети
+      #  - INTERNAL – слушает на 9092 внутри Docker-сети
       #  - EXTERNAL – слушает на 9093 для внешних подключений
-      KAFKA_LISTENERS: INTERNAL://0.0.0.0:29092,EXTERNAL://0.0.0.0:9093
+      KAFKA_LISTENERS: INTERNAL://0.0.0.0:9092,EXTERNAL://0.0.0.0:9093
       # В метаданных клиентам будет возвращён внутренний адрес для контейнеров и внешний для внешних клиентов
-      KAFKA_ADVERTISED_LISTENERS: INTERNAL://kafka:29092,EXTERNAL://${HOST}:9093
+      KAFKA_ADVERTISED_LISTENERS: INTERNAL://kafka:9092,EXTERNAL://${HOST}:9093
       KAFKA_LISTENER_SECURITY_PROTOCOL_MAP: INTERNAL:PLAINTEXT,EXTERNAL:PLAINTEXT
       # Для внутрикластерного общения (между брокерами) используется INTERNAL-слушатель
       KAFKA_INTER_BROKER_LISTENER_NAME: INTERNAL
@@ -49,11 +49,10 @@ services:
     environment:
       KAFKA_CLUSTERS_0_NAME: local
       # Для внутренних контейнеров используем INTERNAL-слушатель, так как имя "kafka" разрешается в сети Docker
-      KAFKA_CLUSTERS_0_BOOTSTRAPSERVERS: kafka:29092
+      KAFKA_CLUSTERS_0_BOOTSTRAPSERVERS: kafka:9092
       KAFKA_CLUSTERS_0_ZOOKEEPER: zookeeper:2181
     depends_on:
       - kafka
-
 
 volumes:
   zookeeper-data:
