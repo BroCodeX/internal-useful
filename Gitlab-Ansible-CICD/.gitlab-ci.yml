@@ -1,0 +1,144 @@
+spec:
+  inputs:
+    playbook:
+      description: "Select playbook to run"
+      type: string
+      options:
+        - firewalld
+        - firewalld-disable
+        - firewalld-binom
+        - nginx
+        - clickhouse
+        - prometheus
+        - filebeat
+        - records
+        - deploy_sysctl
+        - setup-server-basic
+        - setup-server-app
+        - update-geoip
+        - update-passwords
+      default: "firewalld"
+    limit:
+      description: "Limit to host or group names (comma separated)"
+      type: string
+      default: ""
+    tags:
+      description: "Tags names (comma separated)"
+      type: string
+      default: ""
+    extra_args:
+      description: "Extra args ansible-playbook"
+      type: string
+      default: ""
+    has_vault:
+      description: "Use --vault-password-file"
+      type: boolean
+      default: false
+---
+
+workflow:
+  rules:
+    - if: $CI_COMMIT_BRANCH == "master"
+      when: always
+    - when: never
+
+stages:
+  - build_and_push
+  - check
+  - deploy
+
+.common_tags:  
+  tags:
+    - dev2
+
+variables:
+  CI_REGISTRY: ""
+  CI_REGISTRY_IMAGE: ""
+  INVENTORY: "inventory/hosts.yml"
+
+.before_script_ansible:
+  - eval $(ssh-agent -s)
+  - chmod 400 "$ANSIBLE_SSH_PRIVATE_KEY"
+  # - ssh-add "$ANSIBLE_SSH_PRIVATE_KEY"
+  - cat "$ANSIBLE_SSH_PRIVATE_KEY" | base64 -d | ssh-add -
+  - mkdir -p ~/.ssh
+  - chmod 700 ~/.ssh
+  # - cp "$SSH_KNOWN_HOSTS" ~/.ssh/known_hosts
+  - cat "$SSH_KNOWN_HOSTS" | base64 -d > ~/.ssh/known_hosts
+  - chmod 644 ~/.ssh/known_hosts
+
+# =====
+# Build image and push
+# =====
+build_and_push:
+  extends:
+    - .common_tags
+  stage: build_and_push
+  image: docker:24.0.5
+  services:
+    - docker:24.0.5-dind
+  variables:
+    DOCKER_HOST: tcp://docker:2375
+    DOCKER_TLS_CERTDIR: ""
+  script:
+    - echo "$CI_TOKEN" | docker login "$CI_REGISTRY" -u "registry_user" --password-stdin
+    - docker build -f docker/Dockerfile -t "$CI_REGISTRY_IMAGE" .
+    - docker push "$CI_REGISTRY_IMAGE"
+  rules:
+    - if: $CI_COMMIT_BRANCH == "master"
+      when: manual
+
+# =====
+# Check diff playbook
+# =====
+"$[[ inputs.playbook ]] - $[[ inputs.limit ]] - $[[ inputs.tags ]] - check":
+  image: $CI_REGISTRY_IMAGE
+  extends:
+    - .common_tags
+  stage: check
+  needs: []
+  before_script:
+    - !reference [.before_script_ansible]
+  variables:
+    ANSIBLE_ARGS: &ansible_args |
+      --inventory $INVENTORY
+      --limit $[[ inputs.limit ]]
+      --tags $[[ inputs.tags ]]
+      --user ansible
+      $[[ inputs.extra_args ]]
+  script:
+    - if $[[ inputs.has_vault ]]; then ANSIBLE_ARGS="$ANSIBLE_ARGS --vault-password-file ${ANSIBLE_VAULT_PASSWORD_FILE}"; fi
+    - echo ${ANSIBLE_ARGS}
+    - ansible-playbook ${ANSIBLE_ARGS} $[[ inputs.playbook ]].yml -C -D
+  rules:
+    - changes:
+        - roles/firewalld/files/custom_ipset_binom_blacklist.xml
+      when: on_success
+    - if: $CI_COMMIT_BRANCH == "master"
+      when: manual
+
+# =====
+# Deploy playbook
+# =====
+"$[[ inputs.playbook ]] - $[[ inputs.limit ]] - $[[ inputs.tags ]] - deploy":
+  image: $CI_REGISTRY_IMAGE
+  extends:
+    - .common_tags
+  stage: deploy
+  before_script:
+    - !reference [.before_script_ansible]
+  variables:
+    ANSIBLE_ARGS: *ansible_args
+  script:
+    - if $[[ inputs.has_vault ]]; then ANSIBLE_ARGS="$ANSIBLE_ARGS --vault-password-file ${ANSIBLE_VAULT_PASSWORD_FILE}"; fi
+    - echo ${ANSIBLE_ARGS}
+    - ansible-playbook ${ANSIBLE_ARGS} $[[ inputs.playbook ]].yml -D -v
+  needs:
+    - job: "$[[ inputs.playbook ]] - $[[ inputs.limit ]] - $[[ inputs.tags ]] - check"
+      optional: true
+  rules:
+    - changes:
+        - roles/firewalld/files/custom_ipset_binom_blacklist.xml
+      when: on_success
+    - if: $CI_COMMIT_BRANCH == "master"
+      when: manual
