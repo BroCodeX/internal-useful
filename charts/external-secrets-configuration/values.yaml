@@ -1,0 +1,19 @@
+vault:
+  server: ""
+  kv_path: ""
+  apiVersion: "v2"
+
+kubernetes:
+  role: ""
+
+clusterStore:
+  name: "vault-backend"
+
+rbac:
+  vaultServiceAccount: "vault"
+  externalSecretsServiceAccount: "external-secrets"
+  audiences:
+    - vault
+
+secret:
+  path: ""

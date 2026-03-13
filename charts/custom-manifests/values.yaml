@@ -1,0 +1,23 @@
+secrets: {}
+  # mysecret:
+  #   type: {}
+  #   annotations: {}
+  #   labels: {}
+  #   stringData: {}
+  #   bcryptStringData: {}
+  #   data: {}
+
+configmaps: {}
+  # myconfigmap:
+  #   labels: {}
+  #   annotations: {}
+  #   data:
+  #     example-one.yaml: |
+  #       content one
+  #     example-two.yaml: |
+  #       content two
+
+extraObjects: []
+
+extraObjectsMap: {}
+

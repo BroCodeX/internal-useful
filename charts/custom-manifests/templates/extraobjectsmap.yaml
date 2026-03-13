@@ -1,0 +1,4 @@
+{{ range $name, $value := .Values.extraObjectsMap }}
+---
+{{ tpl (toYaml $value) $ }}
+{{ end }}
