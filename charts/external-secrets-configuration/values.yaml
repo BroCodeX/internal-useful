@@ -9,11 +9,9 @@ kubernetes:
 clusterStore:
   name: "vault-backend"
 
-rbac:
-  vaultServiceAccount: "vault"
-  externalSecretsServiceAccount: "external-secrets"
-  audiences:
-    - vault
+k8s_auth:
+  serviceAccountName: "external-secrets"
+  namespace: "external-secrets"
+  audiences: []
 
-secret:
-  path: ""
+conditions: []
