@@ -1,4 +1,8 @@
-{{ range $name, $value := .Values.extraObjectsMap }}
+{{- range $name, $value := .Values.extraObjectsMap }}
 ---
-{{ tpl (toYaml $value) $ }}
-{{ end }}
+{{- if $value.raw }}
+  {{- toYaml $value }}
+{{- else }}
+  {{- tpl (toYaml $value) $ }}
+{{- end }}
+{{- end }}
